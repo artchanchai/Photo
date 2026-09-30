@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แกลเลอรีรูปภาพกิจกรรม</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Phosphor Icons -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased">
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+<div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+<i class="ph-bold ph-image text-2xl"></i>
+</div>
+<div>
+<h1 class="text-lg font-bold text-slate-900">แกลเลอรีรูปภาพกิจกรรม</h1>
+<p class="text-xs text-slate-500">เรียกดูและดาวน์โหลดรูปภาพความละเอียดสูง</p>
+</div>
+</div>
+<button onclick="loadPhotos()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors">
+<i class="ph-bold ph-arrows-clockwise text-sm"></i>
+รีเฟรช
+</button>
+</div>
+</header>
+<!-- Main Container -->
+<main class="max-w-7xl mx-auto px-4 py-6 sm:px-6">
+<!-- State: Loading -->
+<div id="loading" class="flex flex-col items-center justify-center py-20">
+<div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
+<p class="mt-4 text-sm text-slate-500 font-medium">กำลังโหลดรูปภาพจากระบบ...</p>
+</div>
+<!-- State: Empty -->
+<div id="empty-state" class="hidden text-center py-20">
+<i class="ph ph-folder-open text-5xl text-slate-300"></i>
+<p class="mt-2 text-slate-600 font-medium">ยังไม่มีรูปภาพในโฟลเดอร์</p>
+</div>
+<!-- แกลเลอรีแบบ Justified Row: เรียงตามเวลาจากซ้ายไปขวา และคงอัตราส่วนจริง -->
+<div id="gallery-grid" class="hidden flex flex-wrap gap-4 items-center">
+<!-- รูปภาพจะถูกแทรกที่นี่ -->
+</div>
+</main>
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex flex-col justify-between p-4 transition-opacity">
+<div class="flex justify-between items-center text-white p-2">
+<span id="modal-title" class="text-sm font-medium truncate max-w-xs sm:max-w-md"></span>
+<div class="flex items-center gap-3">
+<a id="modal-download" href="#" target="_blank" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors" title="ดาวน์โหลดภาพต้นฉบับ">
+<i class="ph-bold ph-download-simple text-lg"></i>
+</a>
+<button onclick="closeModal()" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors" title="ปิด">
+<i class="ph-bold ph-x text-lg"></i>
+</button>
+</div>
+</div>
+<div class="flex items-center justify-center flex-1 max-h-[82vh] overflow-hidden my-auto p-2">
+<img id="modal-img" src="" alt="" class="max-h-full max-w-full object-contain rounded-lg shadow-2xl">
+</div>
+<div class="text-center text-xs text-white/60 p-2">
+คลิกที่ปุ่มดาวน์โหลดเพื่อรับไฟล์ต้นฉบับ
+</div>
+</div>
+<script>
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxfOAEoSE-il1t5v_k7wvE50VI7mSTGFVYKbFp2Y6rTqZxF9DrnGu4O7hufjZ1J_WZs/exec";
+let photoData = [];
+function loadPhotos() {
+const loading = document.getElementById('loading');
+const grid = document.getElementById('gallery-grid');
+const empty = document.getElementById('empty-state');
+loading.classList.remove('hidden');
+grid.classList.add('hidden');
+empty.classList.add('hidden');
+// ลบแท็ก script JSONP เดิมหากมี
+const oldScript = document.getElementById('gas-jsonp');
+if (oldScript) oldScript.remove();
+// ดึงข้อมูลผ่าน JSONP ข้ามปัญหา CORS และรองรับทั้ง Localhost/Live Server และ GitHub Pages
+const script = document.createElement('script');
+script.id = 'gas-jsonp';
+script.src = ⁠${GAS_API_URL}?callback=handlePhotoResponse&_t=${Date.now()}⁠;
+script.onerror = () => {
+loading.classList.add('hidden');
+alert("ไม่สามารถเชื่อมต่อระบบคลังภาพได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือสิทธิ์ Web App");
+};
+document.body.appendChild(script);
+}
+// Callback รับข้อมูลจาก Apps Script
+window.handlePhotoResponse = function(res) {
+const loading = document.getElementById('loading');
+const grid = document.getElementById('gallery-grid');
+const empty = document.getElementById('empty-state');
+loading.classList.add('hidden');
+if (res.status !== "success" || !res.data || res.data.length === 0) {
+empty.classList.remove('hidden');
+return;
+}
+photoData = res.data;
+grid.innerHTML = "";
+photoData.forEach((item, index) => {
+const card = document.createElement('div');
+// คงอัตราส่วนจริง ความสูงมาตรฐาน h-44 (มือถือ) และ sm:h-56 (จอคอม)
+card.className = "group relative bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer h-44 sm:h-56 flex-grow max-w-full flex items-center justify-center";
+card.innerHTML = ⁠<img src="${item.thumbUrl}" alt="${item.title}" loading="lazy" class="h-full w-auto max-w-full object-contain block group-hover:scale-105 transition-transform duration-300"> <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5"> <span class="text-white text-xs truncate font-medium drop-shadow">${item.title}</span> <span class="text-slate-300 text-[10px] mt-0.5">${item.date || ''}</span> </div>⁠;
+card.onclick = () => openModal(index);
+grid.appendChild(card);
+});
+grid.classList.remove('hidden');
+};
+function openModal(index) {
+const item = photoData[index];
+if (!item) return;
+document.getElementById('modal-title').textContent = item.title;
+document.getElementById('modal-img').src = item.fullUrl;
+document.getElementById('modal-download').href = item.downloadUrl;
+document.getElementById('lightbox').classList.remove('hidden');
+}
+function closeModal() {
+document.getElementById('lightbox').classList.add('hidden');
+document.getElementById('modal-img').src = "";
+}
+window.addEventListener('keydown', (e) => {
+if (e.key === "Escape") closeModal();
+});
+window.addEventListener('DOMContentLoaded', loadPhotos);
+</script>
+</body>
+</html>
